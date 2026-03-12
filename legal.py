@@ -19,7 +19,8 @@ st.set_page_config(
 
 load_dotenv()
 
-API_URL = "https://models.inference.ai.azure.com/chat/completions"
+# Use GitHub Models REST endpoint
+API_URL = "https://models.github.ai/inference/chat/completions"
 API_KEY = os.getenv("GITHUB_TOKEN")
 
 # allow configuration via Streamlit secrets as well (useful on streamlit.io)
@@ -80,8 +81,9 @@ Here is the document:
 
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2026-03-10",
+        "Authorization": f"Bearer {API_KEY}",
     }
     data = {
         "model": MODEL_NAME, 
@@ -230,8 +232,9 @@ Please provide a clear, simple answer that helps them understand the document be
 
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2026-03-10",
+        "Authorization": f"Bearer {API_KEY}",
     }
     data = {
         "model": MODEL_NAME,
@@ -353,7 +356,8 @@ def get_legal_measures(keywords_list):
 
     headers = {
         "Content-Type":  "application/json",
-        "Accept":        "application/json",
+        "Accept":        "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2026-03-10",
         "Authorization": f"Bearer {API_KEY}",
     }
     payload = {
