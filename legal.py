@@ -22,6 +22,14 @@ load_dotenv()
 API_URL = "https://models.inference.ai.azure.com/chat/completions"
 API_KEY = os.getenv("GITHUB_TOKEN")
 
+# allow configuration via Streamlit secrets as well (useful on streamlit.io)
+try:
+    if "GITHUB_TOKEN" in st.secrets:
+        API_KEY = st.secrets["GITHUB_TOKEN"]
+except Exception:
+    # st.secrets is not available when running locally without a secrets file
+    pass
+
 MODEL_NAME = "gpt-4o-mini"
 
 # guard against sending an enormous document (413 errors).
@@ -38,7 +46,8 @@ def analyze_document(document_text):
     # ensure API key is available before making any API calls
     if not API_KEY:
         return {
-            "error": "API key not configured. Please set GITHUB_TOKEN in your .env file."
+            "error": "API key not configured. Set GITHUB_TOKEN in your local .env file "
+                     "or in Streamlit secrets, then rerun the app."
         }
 
     # if the document exceeds the per-request limit, process it in chunks and
@@ -117,9 +126,16 @@ Here is the document:
                     "raw_response": ai_text
                 }
         else:
+            if response.status_code == 401:
+                return {
+                    "error": "Authentication failed with status code 401. "
+                             "Please verify that your GITHUB_TOKEN is correct and has access "
+                             "to GitHub Models / Azure Inference, then restart the app.",
+                    "details": response.text,
+                }
             return {
                 "error": (f"API request failed with status code {response.status_code}"),
-                "details": response.text
+                "details": response.text,
             }
     except Exception as e:
         return {
@@ -188,6 +204,13 @@ def ask_question(document_text, question, conversation_history):
         document_text = document_text[:MAX_DOC_CHARS]
         # warning to UI is handled by caller if desired
 
+    # ensure API key is available before making any API calls
+    if not API_KEY:
+        return (
+            "API key not configured. Set GITHUB_TOKEN in your local .env file or in "
+            "Streamlit secrets, then rerun the app."
+        )
+
     messages = []
 
     for msg in conversation_history:
@@ -221,8 +244,16 @@ Please provide a clear, simple answer that helps them understand the document be
             result = response.json()
             answer = result["choices"][0]["message"]["content"]
             return answer
+        elif response.status_code == 401:
+            return (
+                "Authentication failed with status code 401. "
+                "Please check that your GITHUB_TOKEN is valid and has access to the API."
+            )
         else:
-            return f"Sorry, I couldn't process your question. Error code: {response.status_code}"
+            return (
+                f"Sorry, I couldn't process your question. "
+                f"Error code: {response.status_code}"
+            )
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
@@ -313,6 +344,13 @@ def get_legal_measures(keywords_list):
     
     Respond ONLY in valid JSON. No preamble, no markdown, no extra text."""
 
+    # ensure API key is available before making any API calls
+    if not API_KEY:
+        return {
+            "error": "API key not configured. Set GITHUB_TOKEN in your local .env file "
+                     "or in Streamlit secrets, then rerun the app."
+        }
+
     headers = {
         "Content-Type":  "application/json",
         "Accept":        "application/json",
@@ -330,6 +368,12 @@ def get_legal_measures(keywords_list):
             raw   = resp.json()["choices"][0]["message"]["content"]
             clean = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
             return json.loads(clean)
+        if resp.status_code == 401:
+            return {
+                "error": "Authentication failed with status code 401. "
+                         "Please verify that your GITHUB_TOKEN is correct and has access "
+                         "to GitHub Models / Azure Inference."
+            }
         return {"error": f"API error {resp.status_code}"}
     except Exception as ex:
         return {"error": str(ex)}
@@ -874,7 +918,13 @@ with tab2:
                     st.session_state.documents[filename] = document_text
                     st.success(f"✅ Loaded: {filename}")
                     with st.expander(f"Preview {filename}"):
-                        st.text_area("", document_text[:2000] + ("..." if len(document_text)>2000 else ""), height=150, disabled=True)
+                        st.text_area(
+                            "Document preview",
+                            document_text[:2000] + ("..." if len(document_text) > 2000 else ""),
+                            height=150,
+                            disabled=True,
+                            label_visibility="collapsed",
+                        )
             except Exception as e:
                 st.error(f"❌ {filename} could not be read: {e}")
     else:
