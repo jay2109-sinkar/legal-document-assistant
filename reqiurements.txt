@@ -1,0 +1,11 @@
+1. Streamlit
+2. requests
+3. PyPDF2   
+4. python-docx  
+5.filename
+6. json
+7. os
+8. dotnenv
+9. docx
+10. plotly.graph_objects
+11. datetime
